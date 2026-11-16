@@ -1,0 +1,98 @@
+#!/bin/sh
+# Wires scicalc into an Omarchy desktop:
+#   - the bar button (omarchy/badger.scicalc), beside the indicators
+#   - a Hyprland rule that floats and centers the window
+#   - SUPER+SHIFT+Q opening scicalc instead of omacalc (skip with --no-bind)
+#
+# Safe to run again: each step is skipped when already in place, and every
+# file is backed up before it is changed. Install the app itself with
+# bin/install.
+set -eu
+
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+CONFIG="${XDG_CONFIG_HOME:-$HOME/.config}"
+PLUGINS="$CONFIG/omarchy/plugins"
+SHELL_JSON="$CONFIG/omarchy/shell.json"
+HYPRLAND="$CONFIG/hypr/hyprland.lua"
+BINDINGS="$CONFIG/hypr/bindings.lua"
+
+bind=1
+for arg in "$@"; do
+  case "$arg" in
+    --no-bind) bind=0 ;;
+    -h|--help) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    *) echo "setup: unknown option $arg" >&2; exit 1 ;;
+  esac
+done
+
+backup() { cp "$1" "$1.bak.$(date +%s)"; }
+hypr_changed=0
+
+# Bar button. Copied rather than linked: the shell watches its own plugin
+# folder for changes, and a copy keeps working if this checkout moves.
+mkdir -p "$PLUGINS/badger.scicalc"
+cp "$ROOT/omarchy/badger.scicalc/"* "$PLUGINS/badger.scicalc/"
+echo "Bar plugin installed in $PLUGINS/badger.scicalc"
+
+if [ ! -f "$SHELL_JSON" ]; then
+  echo "No $SHELL_JSON; add badger.scicalc to the bar with: omarchy bar put badger.scicalc --after omarchy.indicators" >&2
+elif jq -e '[.bar.layout[]?[]?.id] | index("badger.scicalc")' "$SHELL_JSON" >/dev/null; then
+  echo "Bar button already in the bar"
+else
+  backup "$SHELL_JSON"
+  tmp="$SHELL_JSON.tmp.$$"
+  # Right after the indicators (the stay-awake mug), so it sits beside the clock.
+  jq '.bar.layout.centerBegin = (
+        (.bar.layout.centerBegin // []) as $s
+        | ($s | map(.id) | index("omarchy.indicators")) as $i
+        | if $i == null then $s + [{"id": "badger.scicalc"}]
+          else $s[:$i+1] + [{"id": "badger.scicalc"}] + $s[$i+1:] end)' \
+    "$SHELL_JSON" > "$tmp" && mv "$tmp" "$SHELL_JSON"
+  echo "Bar button added beside the indicators"
+fi
+
+# Floating window.
+if grep -q 'o.window("scicalc"' "$HYPRLAND" 2>/dev/null; then
+  echo "Float rule already in $HYPRLAND"
+elif [ -f "$HYPRLAND" ]; then
+  backup "$HYPRLAND"
+  cat >> "$HYPRLAND" <<'EOF'
+
+-- scicalc: a floating scientific calculator, centered.
+o.window("scicalc", { float = true, center = true, size = { 440, 660 } })
+EOF
+  hypr_changed=1
+  echo "Float rule added to $HYPRLAND"
+else
+  echo "No $HYPRLAND; skipping the float rule" >&2
+fi
+
+# Keybinding.
+if [ "$bind" = 1 ]; then
+  if grep -q 'launch = "scicalc"' "$BINDINGS" 2>/dev/null; then
+    echo "SUPER+SHIFT+Q already opens scicalc"
+  elif [ -f "$BINDINGS" ]; then
+    backup "$BINDINGS"
+    cat >> "$BINDINGS" <<'EOF'
+
+-- Replace SUPER+SHIFT+Q (was: omacalc) with scicalc.
+o.rebind("SUPER + SHIFT + Q", "Calculator", { launch = "scicalc" })
+EOF
+    hypr_changed=1
+    echo "SUPER+SHIFT+Q now opens scicalc (was omacalc)"
+  else
+    echo "No $BINDINGS; skipping the keybinding" >&2
+  fi
+fi
+
+if [ "$hypr_changed" = 1 ] && [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && command -v hyprctl >/dev/null; then
+  hyprctl reload >/dev/null
+  errors="$(hyprctl configerrors)"
+  if [ -n "$errors" ]; then
+    echo "Hyprland reports config errors:" >&2
+    echo "$errors" >&2
+    exit 1
+  fi
+fi
+
+command -v scicalc >/dev/null || echo "scicalc is not installed yet; run $ROOT/bin/install"

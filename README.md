@@ -72,12 +72,19 @@ State lives in `~/.local/state/scicalc/state.json`.
 
 ## Desktop integration
 
-Floating, centered window (`~/.config/hypr/hyprland.lua`):
-
-```lua
-o.window("scicalc", { float = true, center = true, size = { 440, 660 } })
+```sh
+bin/setup              # bar button, floating window, SUPER+SHIFT+Q
+bin/setup --no-bind    # the same, but leave SUPER+SHIFT+Q on omacalc
 ```
 
-Bar button: the `badger.scicalc` plugin in `~/.config/omarchy/plugins/`,
-placed in `bar.layout.centerBegin` beside the indicators; it runs
-`scicalc toggle`.
+`bin/setup` is safe to run again; it skips what is already in place and backs
+up each file it changes. It:
+
+- copies the bar plugin in `omarchy/badger.scicalc/` to
+  `~/.config/omarchy/plugins/` and puts it in `bar.layout.centerBegin` right
+  after the indicators, next to the clock. The button runs `scicalc toggle`.
+- adds a Hyprland rule to `~/.config/hypr/hyprland.lua` that floats and
+  centers the window:
+  `o.window("scicalc", { float = true, center = true, size = { 440, 660 } })`
+- rebinds SUPER+SHIFT+Q (Omarchy's `omacalc`) to scicalc in
+  `~/.config/hypr/bindings.lua`.

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "badger.scicalc",
+  "name": "Calculator",
+  "version": "1.0.0",
+  "author": "Robin Marin",
+  "license": "MIT",
+  "description": "Opens and closes the scicalc scientific calculator",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Calculator.qml"
+  },
+  "barWidget": {
+    "displayName": "Calculator",
+    "description": "Opens and closes the scicalc scientific calculator",
+    "category": "Tools",
+    "aliases": ["calculator", "calc", "math"],
+    "allowMultiple": false,
+    "defaultSection": "centerBegin"
+  }
+}
