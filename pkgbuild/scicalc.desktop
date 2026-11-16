@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Scientific Calculator
+Comment=Keyboard-first scientific calculator for one-off sums
+Exec=scicalc
+Icon=scicalc
+Terminal=false
+Categories=Utility;Calculator;
+Keywords=calc;calculator;math;scientific;
+StartupWMClass=scicalc
