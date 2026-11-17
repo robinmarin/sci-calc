@@ -561,8 +561,20 @@ QString Engine::groupThousands(const QString &formatted) {
     return (negative ? "-" : "") + whole + (dot < 0 ? QString() : body.mid(dot));
 }
 
+// Past this, a fraction is no easier to read than the decimal.
+constexpr long double MaxNumerator = 1e6L;
+constexpr long double MaxDenominator = 10000;
+
+bool Engine::isReadableFraction(const QString &fraction) {
+    const QStringList parts = QString(fraction).remove('-').split('/');
+    bool okTop = false, okBottom = false;
+    if (parts.size() != 2) return false;
+    const double top = parts[0].toDouble(&okTop), bottom = parts[1].toDouble(&okBottom);
+    return okTop && okBottom && top < MaxNumerator && bottom > 1 && bottom <= MaxDenominator;
+}
+
 QString Engine::fraction(long double value) {
-    if (!std::isfinite(value) || isInteger(value) || std::fabs(value) >= 1e7L)
+    if (!std::isfinite(value) || isInteger(value) || std::fabs(value) >= MaxNumerator)
         return {};
     const long double x = std::fabs(value);
     // Continued-fraction convergents until the denominator grows too large.
@@ -570,10 +582,13 @@ QString Engine::fraction(long double value) {
     for (int i = 0; i < 40; ++i) {
         const long double a = std::floor(rest);
         const long double h2 = a * h1 + h0, k2 = a * k1 + k0;
-        if (k2 > 10000) break;
+        if (k2 > MaxDenominator) break;
         h0 = h1; h1 = h2; k0 = k1; k1 = k2;
-        if (std::fabs(x - h1 / k1) <= 1e-12L * std::max(1.0L, x)) {
-            if (k1 == 1) return {};
+        // A real fraction matches to long double precision (about 1e-19);
+        // a looser test lets large irrational answers pass for a fraction
+        // with a nine-digit numerator, as e^10*5 did.
+        if (std::fabs(x - h1 / k1) <= 1e-15L * std::max(1.0L, x)) {
+            if (k1 == 1 || h1 >= MaxNumerator) return {};
             return QString("%1%2/%3").arg(value < 0 ? "-" : "").arg(static_cast<qlonglong>(h1)).arg(static_cast<qlonglong>(k1));
         }
         const long double frac = rest - a;

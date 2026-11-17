@@ -139,10 +139,13 @@ void Backend::load() {
         const QJsonObject e = entry.toObject();
         if (e.value("input").toString().isEmpty())
             continue;
+        QString fraction = e.value("fraction").toString();
+        if (!Engine::isReadableFraction(fraction))
+            fraction.clear();
         m_history.append(QVariantMap{
             {"input", e.value("input").toString()},
             {"result", e.value("result").toString()},
-            {"fraction", e.value("fraction").toString()},
+            {"fraction", fraction},
             {"assigned", e.value("assigned").toString()},
         });
     }

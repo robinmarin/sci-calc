@@ -146,6 +146,16 @@ private slots:
         QCOMPARE(Engine::fraction(-1.0L / 3), QString("-1/3"));
         QCOMPARE(Engine::fraction(2.0L), QString());
         QCOMPARE(Engine::fraction(3.141592653589793L), QString());
+        QCOMPARE(Engine::fraction(22.0L / 7), QString("22/7"));
+        QCOMPARE(Engine::fraction(1.0L / 9999), QString("1/9999"));
+        QCOMPARE(Engine::fraction(0.1L + 0.2L), QString("3/10"));
+        // Irrational answers must not pass for a fraction.
+        QCOMPARE(Engine::fraction(std::exp(10.0L) * 5), QString());
+        QCOMPARE(Engine::fraction(std::sqrt(2.0L)), QString());
+        QCOMPARE(Engine::fraction(std::exp(1.0L)), QString());
+        QVERIFY(Engine::isReadableFraction("-3/8"));
+        QVERIFY(!Engine::isReadableFraction("488436879/4435"));
+        QVERIFY(!Engine::isReadableFraction(""));
     }
 
     void backendChainsAndPersists() {
@@ -171,6 +181,20 @@ private slots:
         QCOMPARE(restored.lastResult(), QString("4"));
         QVERIFY(restored.evaluate("sin(30)"));
         QCOMPARE(restored.lastResult(), QString("0.5"));
+    }
+
+    // Older versions saved fractions like this one beside irrational answers.
+    void backendDropsBogusSavedFractions() {
+        QTemporaryDir dir;
+        const QString state = dir.filePath("state.json");
+        write(state, R"({"history": [
+            {"input": "e^10*5", "result": "110132.328974", "fraction": "488436879/4435"},
+            {"input": "3/8", "result": "0.375", "fraction": "3/8"}
+        ]})");
+        Backend backend(state);
+        QCOMPARE(backend.history().size(), 2);
+        QCOMPARE(backend.history().at(0).toMap().value("fraction").toString(), QString());
+        QCOMPARE(backend.history().at(1).toMap().value("fraction").toString(), QString("3/8"));
     }
 
     void ansPrefixRules() {

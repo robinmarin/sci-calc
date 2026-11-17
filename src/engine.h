@@ -45,6 +45,9 @@ public:
     static QString groupThousands(const QString &formatted);
     // "3/8" when the value is a fraction with a small denominator, else "".
     static QString fraction(long double value);
+    // Whether a stored "p/q" is one fraction() would still show; older
+    // versions saved some that it no longer does.
+    static bool isReadableFraction(const QString &fraction);
 
 private:
     Angle m_angle = Angle::Radians;
